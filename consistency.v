@@ -31,14 +31,13 @@ Hint Unfold consistent.
 Ltac flatten_unify_consistent :=
   simpl in *; apply_commutes; try discriminate.
 
-Lemma flatten_unify_consistent : forall t1 t2,
-  unifies (flatten t1) (flatten t2) ->
+Lemma flatten_unify_consistent : forall t1 t2 w1 w2,
+  apply w1 t1 = apply w2 t2 ->
   consistent t1 t2.
 Proof.
   induction t1; intros; inverts H; not_value_type;
     destruct t2; not_value_type; flatten_unify_consistent; auto.
-  inverts H0. auto.
-  inverts H0. unfold unifies in IHt1_1. specialize (IHt1_1 t2_1). lapplies IHt1_1.
-    unfolds consistent. intros. inverts H0. apply H in H5. auto. inverts H3. auto.
-    exists x. auto.
+  inverts H1. auto.
+  inverts H1. specialize (IHt1_1 t2_1 w1 w2). apply IHt1_1 in H0. unfolds consistent.
+  intros. inverts H. constructor. apply H0. auto. inverts H1. auto.
 Qed.

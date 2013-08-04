@@ -84,7 +84,23 @@ Definition combine {Si D m n} (sx1 : substnX Si D m) (sx2 : substnX Si D n)
           exist _ (mxs1 ++ mxs2) _).
   rewrite map_app. rewrite sum_app. pose proof (proj2_sig sx1). pose proof (proj2_sig sx2).
   simpls. unfold mxs1. unfold mxs2. omega.
-Defined.
+Qed.
+
+Definition pair x := (x * x)%type.
+Definition swap {A} (x : pair A) := let (a,b) := x in (b,a).
+
+Lemma fst_swap : forall {A} (x : pair A),
+  fst (swap x) = snd x.
+Proof.
+  intros. destruct x. auto.
+Qed.
+
+Lemma snd_swap : forall {A} (x : pair A),
+  snd (swap x) = fst x.
+Proof.
+  intros. destruct x. auto.
+Qed.
+
 
 Obligation Tactic := Tactics.program_simpl.
 Unset Transparent Obligations.
@@ -92,25 +108,26 @@ Program Fixpoint go funs axs tcs D g t1 t2
   (Hgood : Good axs)
   (Hck : (funs, axs, tcs); D |-co g ~: t1 ~~ t2) 
   { measure (size_of_co g) } :
-    sig (fun subx : substnX (funs, axs, tcs) D (size_of_co g) =>
-           let sub := sub_from_subx subx in
-           apply sub (flatten t1) = apply sub (flatten t2)) :=
+    sig (fun two_subx : pair (substnX (funs, axs, tcs) D (size_of_co g)) =>
+           let sub1 := sub_from_subx (fst two_subx) in
+           let sub2 := sub_from_subx (snd two_subx) in
+           apply sub1 (flatten t1) = apply sub2 (flatten t2)) :=
   match g with
-    | CRefl ty => nil
-    | CSym co => go funs axs tcs D co t2 t1 Hgood _
+    | CRefl ty => (nil, nil)
+    | CSym co => swap (go funs axs tcs D co t2 t1 Hgood _)
     | CTrans co1 co2 => let t3 := snd (coercionKind funs axs tcs D co1 _) in
-                        let sx1 := go funs axs tcs D co1 t1 t3 Hgood _ in
-                        let sx2 := go funs axs tcs D co2 t3 t2 Hgood _ in
+                        let (sx1, sx3) := go funs axs tcs D co1 t1 t3 Hgood _ in
+                        let (sx3', sx2) := go funs axs tcs D co2 t3 t2 Hgood _ in
                         if elt_in_common_dec sx1 sx2
                         then undefined
-                        else combine sx1 sx2 _
-    | CArrow co1 co2 => nil
-    | CForAll k co => nil
-    | CApp co1 co2 => nil
-    | CLeft co => nil
-    | CRight co => nil
-    | CFun f co => nil
-    | CAx ax tys => nil
+                        else combine sx1 sx2 _ *)
+    | CArrow co1 co2 => undefined
+    | CForAll k co => undefined
+    | CApp co1 co2 => undefined
+    | CLeft co => undefined
+    | CRight co => undefined
+    | CFun f co => undefined
+    | CAx ax tys => undefined
   end.
 Obligation Tactic :=
   Tactics.program_simpl;
@@ -145,7 +162,8 @@ Ltac obtac :=
 Next Obligation.
   unfold sub_from_subx. simpl.
   abstract_go.
-  unfold sub_from_subx in H0. auto.
+  unfold sub_from_subx in H0. rewrite fst_swap. rewrite snd_swap.
+  symmetry. auto.
 Qed.
 
 Next Obligation.
@@ -165,12 +183,15 @@ Next Obligation.
 Qed.  
 
 Next Obligation.
-  intros. unfold t3. clear sx1 t3. abstract_sig. rewrite <- Heq_g in Hck.
+  intros. unfold t3. clear sx3 sx1 t3. abstract_sig. rewrite <- Heq_g in Hck.
   inverts Hck. apply co_kind_det with (t1 := t1) (t2 := t3) in H0; auto.
   intuition; subst; auto.
 Qed.
 
 Next Obligation.
+  intros. rewrite <- Heq_g. simpl. omega.
+Qed.  
+
   Tactics.program_simpl. simpl. omega.
 Qed.
 
@@ -185,7 +206,14 @@ Proof.
 Qed.
 
 Next Obligation.
-  intros. unfold sx1 in *. unfold sx2 in *. clear sx1 sx2. abstract_go.
+  intros. abstract_sig.
+
+  assert ((size_of_co (CTrans co1 co2)) = (S (size_of_co co1 + size_of_co co2))).
+  simpl; auto.
+  
+  rewrite H0.
+ replace 
+unfold sx1 in *. unfold sx2 in *. clear sx1 sx2. abstract_go.
 admit. (* bug in Coq, I think. The above Lemma proves this case. *)
 Qed.
 

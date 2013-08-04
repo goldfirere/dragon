@@ -45,12 +45,11 @@ Notation "ts [ ^^ rhos ]" := (map (open_telescope 0 rhos) ts) (at level 66).
 
 Fixpoint fv t :=
   match t with
-    | TFVar (v x) => \{x}
-    | TFVar (fl _) => \{}
+    | TFVar xv => \{xv}
     | TBVar _ => \{}
-    | TFun f ty => \{f} \u (fv ty)
+    | TFun f ty => \{v f} \u (fv ty)
     | TArrow ty1 ty2 => (fv ty1) \u (fv ty2)
-    | TTycon x => \{x}
+    | TTycon x => \{v x}
     | TForAll k ty => (fv ty)
     | TApp t1 t2 => (fv t1) \u (fv t2)
   end.

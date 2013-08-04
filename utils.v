@@ -7,6 +7,10 @@ Require Import tactics.
 
 Set Implicit Arguments.
 
+(* *** decide propositions *** *)
+Definition decide (P : Prop) :=
+  {P} + {~P}.
+
 (* *** between_dec --- that it is decidable that one nat is between two others *** *)
 
 Section between_dec.
