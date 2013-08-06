@@ -11,6 +11,28 @@ Set Implicit Arguments.
 Definition decide (P : Prop) :=
   {P} + {~P}.
 
+(* *** lift decision into tuples *** *)
+Lemma tuple_eq_decide :
+  forall A B,
+  (forall (a1 a2 : A), decide (a1 = a2)) ->
+  (forall (b1 b2 : B), decide (b1 = b2)) ->
+  forall (p1 p2 : (A * B)),
+  decide (p1 = p2).
+Proof.
+  unfold decide. repeat decide equality.
+Qed.
+
+(* *** summing a list of nats *** *)
+Definition sum ns := fold_right plus 0 ns.
+
+Lemma sum_app : forall xs ys,
+  sum (xs ++ ys) = sum xs + sum ys.
+Proof.
+  induction xs; intros.
+    simpl. auto.
+    simpl. rewrite IHxs. omega.
+Qed.
+
 (* *** between_dec --- that it is decidable that one nat is between two others *** *)
 
 Section between_dec.

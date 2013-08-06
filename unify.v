@@ -1,49 +1,95 @@
 Require Import LibLN.
-Require Import LibReflect.
 Require Import Arith.
 Require Import List.
+Require Import Program.
 
-Require Import type coercion utils subst.
+Require Import type coercion utils subst co_kind var tactics compose.
 
-Definition mapping := (xvar * type)%type.
-Definition substn := list mapping.
+Set Implicit Arguments.
 
-Parameter xvar_eq_decide :
-  forall (xv1 xv2 : xvar), sumbool (xv1 = xv2) (xv1 <> xv2).
+Inductive mapping : Set :=
+| mkMapping : var -> type -> type -> coercion -> mapping.
 
-Fixpoint apply1 (m : mapping) ty :=
-  let (xv, target) := m in
+Definition mappingLhsFun m :=
+  match m with
+    | mkMapping f _ _ _ => f
+  end.
+
+Definition mappingLhsType m :=
+  match m with
+    | mkMapping _ t _ _ => t
+  end.
+
+Definition mappingTarget m :=
+  match m with
+    | mkMapping _ _ t _ => t
+  end.
+
+Definition mappingCo m :=
+  match m with
+    | mkMapping _ _ _ g => g
+  end.
+
+Definition mappingX Si := { bnd : mapping |
+                            Si |-co (mappingCo bnd) ~:
+                                    TFun (mappingLhsFun bnd)
+                                         (mappingLhsType bnd) ~~
+                                    mappingTarget bnd }.
+
+Arguments proj1_sig {_ _} _.
+Definition substnX Si n := { maps : list (mappingX Si) |
+                             sum (map (size_of_co false ∘
+                                       mappingCo ∘
+                                       proj1_sig) maps) <= n }.
+
+Fixpoint apply1 {Si} (mx : mappingX Si) (ty : type) : type :=
+  match proj1_sig mx with
+    | mkMapping lhs_f lhs_ty target _ =>
   match ty with
-    | TFVar x => if xvar_eq_decide x xv then target else ty
     | TBVar n => TBVar n
-    | TFun f ty => TFun f (apply1 m ty)
-    | TArrow ty1 ty2 => TArrow (apply1 m ty1) (apply1 m ty2)
+    | TFun f ty => if tuple_eq_decide var_eq_decide type_eq_decide (lhs_f,lhs_ty) (f,ty)
+                   then target
+                   else ty
+    | TArrow ty1 ty2 => TArrow (apply1 mx ty1) (apply1 mx ty2)
     | TTycon T => TTycon T
-    | TForAll k ty => TForAll k (apply1 m ty)
-    | TApp ty1 ty2 => TApp (apply1 m ty1) (apply1 m ty2)
+    | TApp ty1 ty2 => TApp (apply1 mx ty1) (apply1 mx ty2)
+  end end.
+
+Fixpoint apply_mapping {Si} (mappings : list (mappingX Si)) (t : type) : type :=
+  match mappings with
+    | nil => t
+    | (m :: tail) => apply_mapping tail (apply1 m t)
   end.
 
-Fixpoint apply (s : substn) ty :=
-  match s with
-    | nil => ty
-    | (m :: tail) => apply tail (apply1 m ty)
-  end.
+Definition apply {Si n} (s : substnX Si n) (ty : type) : type :=
+  apply_mapping (proj1_sig s) ty.
 
-Lemma apply_commutes sub t :
+Lemma apply_mapping_commutes Si (mappings : list (mappingX Si)) t :
   match t with
-    | TFVar _ => True
-    | TFun f ty => apply sub t = TFun f (apply sub ty)
+    | TFun f ty => True
+    | TArrow ty1 ty2 => apply_mapping mappings t =
+                        TArrow (apply_mapping mappings ty1) (apply_mapping mappings ty2)
+    | TApp ty1 ty2 => apply_mapping mappings t =
+                      TApp (apply_mapping mappings ty1) (apply_mapping mappings ty2)
+    | t => apply_mapping mappings t = t
+  end.
+Proof.
+  generalize dependent t.
+  induction mappings as [ | m tail ]; intro t; [ | destruct m; simpl; destruct x ]; destruct t; simpl; auto;
+  match goal with
+      | [ |- apply_mapping _ ?ty = _ ] => specialize (IHtail ty)
+  end; simpl in IHtail; auto.
+Qed.
+
+Lemma apply_commutes Si n (sub : substnX Si n) t :
+  match t with
+    | TFun f ty => True
     | TArrow ty1 ty2 => apply sub t = TArrow (apply sub ty1) (apply sub ty2)
-    | TForAll k ty => apply sub t = TForAll k (apply sub ty)
     | TApp ty1 ty2 => apply sub t = TApp (apply sub ty1) (apply sub ty2)
     | t => apply sub t = t
   end.
 Proof.
-  generalize dependent t.
-  induction sub as [ | m sub ]; intro t; [ | destruct m ]; destruct t; simpl; auto;
-  match goal with
-    | [ |- apply sub ?t = _ ] => specialize (IHsub t); simpl in IHsub; auto
-  end.
+  destruct sub as [mappings pf]. unfold apply. simpl. apply apply_mapping_commutes.
 Qed.
 
 Ltac is_bare_type t :=

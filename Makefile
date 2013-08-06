@@ -1,5 +1,5 @@
-COQ_SRC = type.v tactics.v utils.v coercion.v subst.v unify.v flatten.v good.v co_kind.v \
-          dragon.v
+COQ_SRC = type.v tactics.v utils.v coercion.v ty_kind.v co_kind.v \
+          subst.v var.v compose.v
 COQ_OUTPUT = $(COQ_SRC:%.v=%.vo)
 COQ_INCLUDES = $(HOME)/work/etc/coq/tlc
 COQ_INCLUDE_SWITCH = $(COQ_INCLUDES:%=-I %) -I .
