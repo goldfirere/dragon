@@ -94,12 +94,10 @@ Qed.
 
 Ltac is_bare_type t :=
   match t with
-    | TFVar _ => idtac
     | TBVar _ => idtac
     | TFun _ _ => idtac
     | TArrow _ _ => idtac
     | TTycon _ => idtac
-    | TForAll _ _ => idtac
     | TApp _ _ => idtac
   end.
 
