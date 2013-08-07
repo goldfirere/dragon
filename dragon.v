@@ -2,31 +2,105 @@ Require Import LibLN.
 Require Import LibTactics.
 Require Import Arith.
 Require Import List.
-Require Import Program.Wf.
+Require Import Program.
+Require Import ListSet.
 
-Require Import coercion good unify flatten type tactics subst co_kind.
+Require Import coercion good unify type tactics subst co_kind.
 
-Definition undefined {A} : A. Admitted.
+Set Implicit Arguments.
 
-Definition mappingX Si D := sig (fun mco : (mapping * coercion) =>
-                                   let '((xv,target), co) := mco in
-                                   Si; D |-co co ~: TFVar xv ~~ target).
+Definition dom_union := set_union domelt_eq_decide.
 
-Definition size_of_mxco {Si D} (mx : mappingX Si D) :=
-  let (_, co) := proj1_sig mx in size_of_co co.
+Fixpoint dom_of_ty (ty : type) : list (var * type) :=
+  match ty with
+    | TBVar _ => nil
+    | TFun f lhs => (f,lhs) :: nil
+    | TArrow arg res => dom_union (dom_of_ty arg) (dom_of_ty res)
+    | TTycon T => nil
+    | TApp t1 t2 => dom_union (dom_of_ty t1) (dom_of_ty t2)
+  end.
 
-Definition substnX Si D n := sig (fun mxs : list (mappingX Si D) =>
-                                    sum (map size_of_mxco mxs) <= n).
+Definition dom_of_tys t1 t2 : list (var * type) :=
+  dom_union (dom_of_ty t1) (dom_of_ty t2).
 
-Definition sub_from_subx {Si D n} (sx : substnX Si D n) : substn :=
-  let mxs := proj1_sig sx in
-  map fst (map (@proj1_sig _ _) mxs).
+Definition go_result_type Si t1 t2 n :=
+  sigT ( fun n1 : nat =>
+  sigT ( fun n2 : nat =>
+  sigT ( fun dom : list (var * type) =>
+  sig  ( fun subs : (substn Si dom n1 * substn Si dom n2) =>
+    apply (fst subs) t1 = apply (snd subs) t2 /\
+    n1 <= n /\
+    n2 <= n )))).
 
-Definition xv_in_mx_list {Si D} (xv : xvar) (mxs : list (mappingX Si D)) : Prop :=
-  exists mx, In mx mxs /\ fst (fst (proj1_sig mx)) = xv.
+Definition swap Si t1 t2 n (res1 : go_result_type Si t1 t2 n) : go_result_type Si t2 t1 n.
+  destruct res1. destruct s. destruct s. destruct s.
+  unfold go_result_type. exists x0. exists x. exists x1. exists (snd x2, fst x2).
+  simpl. intuition.
+Qed.
 
-Definition xv_in_subx {Si D n} (xv : xvar) (sx : substnX Si D n) : Prop :=
-  xv_in_mx_list xv (proj1_sig sx).
+Obligation Tactic := Tactics.program_simpl.
+Unset Transparent Obligations.
+Unset Implicit Arguments.
+Program Fixpoint go funs axs tcs g t1 t2
+  (Hgood : Good axs)
+  (Hck : (funs, axs, tcs) |-co g ~: t1 ~~ t2) 
+  { measure (size_of_co false g) } :
+  go_result_type (funs,axs,tcs) t1 t2 (size_of_co false g) :=
+  match g with
+    | CRefl ty => existT _ 0 (existT _ 0 (existT _ nil (nilSubst _ _, nilSubst _ _)))
+    | CSym g2 =>  _ (* Coq didn't like this case, so it's done in proof mode *)
+    | CTrans g1 g2 =>
+      let cKind := coercionKind funs axs tcs g1 _ in
+      match cKind with
+        | exist (_t1, t3) _ =>
+      let res1 := go funs axs tcs g1 t1 t3 Hgood _ in
+      let res2 := go funs axs tcs g2 t3 t2 Hgood _ in
+      match res1 with
+        | existT n1 (existT n3a (existT dom1 (exist (w1, w3a) _))) =>
+      match res2 with
+        | existT n3b (existT n2 (existT dom2 (exist (w3b, w2) _))) =>
+      trans_unify w1 w3a w3b w2 t1 t3 t2
+                 
+        res1 := go funs axs tcs g1
+  end.
+
+Next Obligation.
+  inverts Hck. intuition.
+Qed.
+
+Next Obligation.
+  (* sym case *)
+  unfolds go_result_type.
+  specialize (go funs axs tcs g2 t2 t1).
+  lapplies go.
+  - destruct H. destruct s. destruct s. destruct s. destruct a. destruct H0.
+    exists x0. exists x. exists x1. exists (snd x2, fst x2). simpl. intuition.
+  - simpl. omega.
+  - inverts Hck. auto.
+  - auto.
+Qed.
+
+Next Obligation.
+  
+
+
+    | CTrans co1 co2 => let t3 := snd (coercionKind funs axs tcs D co1 _) in
+                        let (sx1, sx3) := go funs axs tcs D co1 t1 t3 Hgood _ in
+                        let (sx3', sx2) := go funs axs tcs D co2 t3 t2 Hgood _ in
+                        if elt_in_common_dec sx1 sx2
+                        then undefined
+                        else combine sx1 sx2 _ *)
+    | CArrow co1 co2 => undefined
+    | CForAll k co => undefined
+    | CApp co1 co2 => undefined
+    | CLeft co => undefined
+    | CRight co => undefined
+    | CFun f co => undefined
+    | CAx ax tys => undefined
+  end.
+
+
+
 
 Definition element_in_common {Si D m n} (sx1 : substnX Si D m)
                                         (sx2 : substnX Si D n) : Prop :=
