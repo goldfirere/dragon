@@ -69,3 +69,21 @@ Ltac abstract_sig_in hyp :=
           simpl in Hs]
   end.
   
+Ltac destruct_if :=
+  let silly_if b x:=
+      replace (if b then x else x) with x in *
+      by (destruct b; auto) in
+  first [
+  match goal with
+    | [ |- context[if ?b then ?x else ?x] ] => silly_if b x
+    | [ H : context[if ?b then ?x else ?x] |- _ ] => silly_if b x
+  end |
+  match goal with
+    | [ |- context[if ?foo then _ else _] ] => destruct foo
+    | [ H : context[if ?foo then _ else _] |- _ ] => destruct foo
+  end ].
+
+Ltac not_equal :=
+  match goal with
+    | [ Hneq : ?x <> ?x |- _ ] => specialize (Hneq eq_refl); contradiction
+  end.
