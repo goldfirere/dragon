@@ -1,4 +1,6 @@
 Require Import LibNat.
+Require Import LibTactics.
+Require Import Program.
 
 Ltac eq_nat :=
   repeat match goal with
@@ -86,4 +88,11 @@ Ltac destruct_if :=
 Ltac not_equal :=
   match goal with
     | [ Hneq : ?x <> ?x |- _ ] => specialize (Hneq eq_refl); contradiction
+  end.
+
+Ltac squash_eq_rect :=
+  let H := fresh in
+  match goal with
+    | [ |- context[eq_rect _ _ _ _ ?Heq] ] => generalize Heq; intro H;
+                                              dependent destruction H; simpl
   end.

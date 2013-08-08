@@ -17,15 +17,15 @@ Inductive coercion :=
 Inductive axiom :=
 | mkAxiom : list kind -> var -> type -> type -> axiom.
 
-Fixpoint size_of_co (fl : bool) co :=
+Fixpoint size_of_co co :=
   match co with
     | CRefl ty => 0
-    | CSym co => S (size_of_co fl co)
-    | CTrans co1 co2 => S (size_of_co fl co1 + size_of_co fl co2)
-    | CArrow co1 co2 => S (size_of_co fl co1 + size_of_co fl co2)
-    | CApp co1 co2 => S (size_of_co fl co1 + size_of_co fl co2)
-    | CLeft co => S (size_of_co fl co)
-    | CRight co => S (size_of_co fl co)
-    | CFun _ co => S (size_of_co fl co)
+    | CSym co => S (size_of_co co)
+    | CTrans co1 co2 => S (size_of_co co1 + size_of_co co2)
+    | CArrow co1 co2 => S (size_of_co co1 + size_of_co co2)
+    | CApp co1 co2 => S (size_of_co co1 + size_of_co co2)
+    | CLeft co => S (size_of_co co)
+    | CRight co => S (size_of_co co)
+    | CFun _ co => S (size_of_co co)
     | CAx _ tys => 1
   end.

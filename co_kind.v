@@ -137,7 +137,7 @@ Unset Transparent Obligations.
 Unset Implicit Arguments.
 Program Fixpoint coercionKind funs axs tcs co 
         (_ : exists t1 t2, (funs,axs,tcs)|-co co ~: t1 ~~ t2) 
-        { measure (size_of_co false co) } :
+        { measure (size_of_co co) } :
   { types : (type * type) |
           (funs, axs, tcs)|-co co ~: (fst types) ~~ (snd types) } :=
   match co with
@@ -225,4 +225,13 @@ Next Obligation.
   (* ax lookup failure impossible *)
   exfalso. inv_exists. inverts H. apply binds_get in H8. rewrite H8 in Heq_anonymous.
   discriminate.
+Qed.
+
+Lemma size0_refl : forall g Si ty1 ty2,
+  size_of_co g = 0 ->
+  Si |-co g ~: ty1 ~~ ty2 ->
+  ty1 = ty2.
+Proof.
+  induction g; intros; simpls; try omega.
+  - inversion H0. auto.
 Qed.

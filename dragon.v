@@ -5,7 +5,7 @@ Require Import List.
 Require Import Program.
 Require Import ListSet.
 
-Require Import coercion good unify type tactics subst co_kind.
+Require Import coercion good unify type tactics subst co_kind subset.
 
 Set Implicit Arguments.
 
@@ -32,37 +32,61 @@ Definition go_result_type Si t1 t2 n :=
     n1 <= n /\
     n2 <= n )))).
 
-Definition swap Si t1 t2 n (res1 : go_result_type Si t1 t2 n) : go_result_type Si t2 t1 n.
-  destruct res1. destruct s. destruct s. destruct s.
-  unfold go_result_type. exists x0. exists x. exists x1. exists (snd x2, fst x2).
-  simpl. intuition.
-Qed.
-
-Obligation Tactic := Tactics.program_simpl.
+Obligation Tactic := idtac.
 Unset Transparent Obligations.
 Unset Implicit Arguments.
 Program Fixpoint go funs axs tcs g t1 t2
   (Hgood : Good axs)
   (Hck : (funs, axs, tcs) |-co g ~: t1 ~~ t2) 
-  { measure (size_of_co false g) } :
-  go_result_type (funs,axs,tcs) t1 t2 (size_of_co false g) :=
+  { measure (size_of_co g) } :
+  go_result_type (funs,axs,tcs) t1 t2 (size_of_co g) :=
   match g with
-    | CRefl ty => existT _ 0 (existT _ 0 (existT _ nil (nilSubst _ _, nilSubst _ _)))
+    | CRefl ty => existT _ 0 (existT _ 0 (existT _ nil (nilSubst _, nilSubst _)))
     | CSym g2 =>  _ (* Coq didn't like this case, so it's done in proof mode *)
     | CTrans g1 g2 =>
+      let fix trans_unify n Si dom1 n1 n3a dom2 n3b n2 
+                 (w1 : substn Si dom1 n1) (w3a : substn Si dom1 n1)
+                 (w3b : substn Si dom2 n3b) (w2 : substn Si dom2 n2)
+                 (t1 t3 t2 : type) 
+                 (HNoDup1 : NoDup dom1) (HNoDup2 : NoDup dom2)
+                 (Heq13 : apply w1 t1 = apply w3a t3)
+                 (Heq32 : apply w3b t3 = apply w2 t2) :
+       go_result_type Si t1 t2 n :=
+         let ex_w3a' := fix_dom w3a w3b _ _ in
+         match ex_w3a' with
+           | existT dom w3a' =>
+         let ex_w3b' := fix_dom w3b w3a' _ _ in
+         match ex_w3b' with
+           | existT dom' w3b' => (* ASSERT(dom == dom') *)
+         match w3a' with
+           | nilSubst => let ex_w1' := fix_dom w1 w2 _ _ in
+                         match ex_w1' with
+                           | existT out_dom w1' =>
+                         let ex_w2' := fix_dom w2 w1' _ _ in
+                         match ex_w2' with
+                           | existT out_dom1 w2' =>
+                         existT _ n1 (existT _ n2 (existT _ out_dom (w1', w2')))
+                         end end
+           | consSubst _ _ _ _ _ _ _ _ => undefined
+         end
+         end end
+      in
       let cKind := coercionKind funs axs tcs g1 _ in
       match cKind with
-        | exist (_t1, t3) _ =>
+        | (_t1, t3) =>
       let res1 := go funs axs tcs g1 t1 t3 Hgood _ in
       let res2 := go funs axs tcs g2 t3 t2 Hgood _ in
       match res1 with
         | existT n1 (existT n3a (existT dom1 (exist (w1, w3a) _))) =>
       match res2 with
         | existT n3b (existT n2 (existT dom2 (exist (w3b, w2) _))) =>
-      trans_unify w1 w3a w3b w2 t1 t3 t2
-                 
-        res1 := go funs axs tcs g1
+      trans_unify (size_of_co g) (funs,axs,tcs) dom1 n1 n3a dom2 n3b n2
+                  w1 w3a w3b w2 t1 t3 t2 _ _ _ _
+      end end end
+    | _ => undefined
   end.
+
+Obligation Tactic := program_simpl.
 
 Next Obligation.
   inverts Hck. intuition.
@@ -80,8 +104,35 @@ Next Obligation.
   - auto.
 Qed.
 
+Next Obligation. Defined.    
+Obligation Tactic := idtac.
+Next Obligation. program_simpl. Defined.
+Next Obligation. program_simpl. Defined.
+Next Obligation. program_simpl. Defined.
+Next Obligation. program_simpl. Defined.
+Next Obligation. intros. assumption. Defined.
+Next Obligation. intros. assumption. Defined.
+Next Obligation. intros. destruct w1'. destruct_pairs. assumption. Defined.
 Next Obligation.
-  
+  intros. destruct w2'. destruct_pairs. apply e0.
+  destruct w1'. destruct_pairs. assumption.
+Defined.
+
+Ltac clear_ugliness :=
+  repeat match goal with
+           | [ Heq_blah : existT _ _ _ = _ |- _ ] => clear Heq_blah
+         end.
+
+Next Obligation.
+  intros. simpl. squash_eq_rect.
+  destruct w1'. destruct w2'. simpl.
+  repeat split.
+  - unfold apply. clear Heq_ex_w2'. clear ex_w2'. clear Heq_ex_w1'. clear ex_w1'.
+    destruct_pairs. rewrite H5. rewrite H. subst*. clear_ugliness.
+    unfolds apply. rewrite Heq13. generalize w3a. clear Heq13. destruct w3a'.
+    clear go. destruct w3b'. destruct_pairs. rewrite <- Heq_n1. intro.
+    rewrite apply_w_size0. rewrite <- Heq32.
+
 
 
     | CTrans co1 co2 => let t3 := snd (coercionKind funs axs tcs D co1 _) in
