@@ -77,6 +77,15 @@ Proof.
   intros. intro Hcon. inverts Hcon. apply wrap_inj in H2. subst. not_equal.
 Qed.
 
+Lemma unwrap_wrap : forall t,
+  unwrap (wrap t) = t.
+Proof.
+  induction t; simpl; auto.
+  - rewrite IHt. auto.
+  - rewrite IHt1. rewrite IHt2. auto.
+  - rewrite IHt1. rewrite IHt2. auto.
+Qed.
+
 Fixpoint apply1 Si g lhs_f lhs_ty target (mx : mapping Si g lhs_f lhs_ty target)
                                          (ty : wrapped_type) : wrapped_type :=
   if type_eq_decide (TFun lhs_f lhs_ty) target
@@ -167,6 +176,14 @@ Proof.
   - simpl. rewrite IHw_empty. apply apply1_size0. omega. omega.
 Qed.
 
+Lemma apply_w_empty_dom : forall Si n (w : substn Si [] n) t,
+  apply_w w t = t.
+Proof.
+  remember []. induction w; intros.
+  - simpl. auto.
+  - discriminate.
+Qed.
+
 Ltac is_bare_type t :=
   match t with
     | TBVar _ => idtac
@@ -195,6 +212,12 @@ Ltac apply_w_commutes :=
 
 Definition apply Si dom n (w : substn Si dom n) t : type :=
   unwrap (apply_w w (wrap t)).
+
+Definition apply_empty_dom : forall Si n (w : substn Si [] n) t,
+  apply w t = t.
+Proof.
+  intros. unfold apply. rewrite apply_w_empty_dom. apply unwrap_wrap.
+Qed.
 
 Fixpoint union_dom (dom1 dom2 : list (var * type)) : list (var * type) :=
   set_union domelt_eq_decide dom1 dom2.

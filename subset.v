@@ -76,3 +76,11 @@ Proof.
     apply IHs1. intro Hcon. eapply in_cons in Hcon. apply H in Hcon. auto.
     eapply subset_cons1. eassumption.
 Qed.
+
+Lemma subset_of_nil : forall s,
+  subset s nil -> s = nil.
+Proof.
+  induction s; intros.
+  - auto.
+  - apply subset_cons1 in H. inverts H. inverts H1.
+Qed.
